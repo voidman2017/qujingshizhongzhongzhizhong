@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="./vue.global.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <button @click="changeShallowRefProperty">
+        changeShallowRefProperty
+      </button>
+      <ul style="color: blue">
+        <li v-for="item in shallowRefObj">{{ item.obj.depth }}</li>
+      </ul>
+    </div>
+    <div id="app2">
+      <button @click="changeRefProperty">changeRefProperty</button>
+      <ul style="color: red">
+        <li v-for="item in refObj">{{ item.obj.depth }}</li>
+      </ul>
+    </div>
+    <script>
+      const { createApp, ref, shallowRef, triggerRef } = Vue
+      const n = 10
+      const obj = Array(n)
+        .fill()
+        .map((_, i) => ({
+          id: i,
+          depth: `${i}-1`, // ← 这是第1层嵌套对象
+          obj: {
+            depth: `${i}-2`, // ← 这是第2层嵌套对象
+            obj: {
+              depth: `${i}-3`, // ← 这是第3层嵌套对象
+              obj: {
+                depth: `${i}-4`, // ← 这是第4层嵌套对象
+              },
+            },
+          },
+        }))
+      const shallowRefObj = shallowRef(obj)
+      const changeShallowRefProperty = () => {
+        shallowRefObj.value[0].obj.depth += '!'
+        triggerRef(shallowRefObj)
+      }
+      createApp({
+        setup() {
+          return {
+            changeShallowRefProperty,
+            shallowRefObj,
+          }
+        },
+      }).mount('#app')
+
+      const obj2 = Array(n)
+        .fill()
+        .map((_, i) => ({
+          id: i,
+          depth: `${i}-1`, // ← 这是第1层嵌套对象
+          obj: {
+            depth: `${i}-2`, // ← 这是第2层嵌套对象
+            obj: {
+              depth: `${i}-3`, // ← 这是第3层嵌套对象
+              obj: {
+                depth: `${i}-4`, // ← 这是第4层嵌套对象
+              },
+            },
+          },
+        }))
+      const refObj = ref(obj2)
+      const changeRefProperty = () => {
+        refObj.value[0].obj.depth += '!'
+      }
+      createApp({
+        setup() {
+          return {
+            changeRefProperty,
+            refObj,
+          }
+        },
+      }).mount('#app2')
+    </script>
+  </body>
+</html>

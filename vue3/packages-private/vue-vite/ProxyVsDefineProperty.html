@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      function observerProperty() {
+        /* 1. 基础对象属性监听 */
+        // 基础对象属性监听
+        const objDefine = { a: 1 }
+        // 定义单个属性的 getter/setter
+        Object.defineProperty(objDefine, 'a', {
+          get() {
+            console.log('defineProperty: 读取属性 a')
+            return this._a // 使用临时变量存储值
+          },
+          set(value) {
+            console.log('defineProperty: 设置属性 a ->', value)
+            this._a = value
+          },
+        })
+
+        // 测试
+        objDefine.a // 输出: defineProperty: 读取属性 a
+        objDefine.a = 2 // 输出: defineProperty: 设置属性 a -> 2
+
+        const objProxy = { a: 1 }
+        const proxy = new Proxy(objProxy, {
+          get(target, key) {
+            console.log(`Proxy: 读取属性 ${key}`)
+            return target[key]
+          },
+          set(target, key, value) {
+            console.log(`Proxy: 设置属性 ${key} -> ${value}`)
+            target[key] = value
+            return true // 严格模式下必须返回 true
+          },
+        })
+
+        // 测试
+        proxy.a // 输出: Proxy: 读取属性 a
+        proxy.a = 2 // 输出: Proxy: 设置属性 a -> 2
+      }
+
+      function dynamicProperty() {
+        /* 2.动态新增/删除属性 */
+        const objDefine = { a: 1 }
+        Object.defineProperty(objDefine, 'a', {
+          get() {
+            console.log('defineProperty: 读取属性 a')
+            return this._a // 使用临时变量存储值
+          },
+          set(value) {
+            console.log('defineProperty: 设置属性 a ->', value)
+            this._a = value
+          },
+        })
+        // 动态新增属性
+        objDefine.b = 2 // 无日志输出
+        objDefine.b // 无日志输出
+        // 动态删除属性
+        delete objDefine.a // 无日志输出
+
+        const objProxy = { a: 1 }
+        const proxy = new Proxy(objProxy, {
+          set(target, key, value) {
+            console.log(`Proxy: 设置属性 ${key} -> ${value}`)
+            target[key] = value
+            return true // 严格模式下必须返回 true
+          },
+          deleteProperty(target, key) {
+            console.log(`Proxy: 删除属性 ${key}`)
+            return delete target[key]
+          },
+        })
+        // 动态新增属性
+        proxy.newProp = 100 // 输出: Proxy: 设置属性 newProp -> 100
+        // 动态删除属性
+        delete proxy.a // 输出: Proxy: 删除属性 a
+      }
+
+      function arrayProperty() {
+        /* 3. 数组操作监听 */
+        const arrDefine = []
+        // 重写 push 方法
+        const arrayProto = Array.prototype
+        const arrayMethods = Object.create(arrayProto)
+        ;['push', 'pop'].forEach(method => {
+          const original = arrayProto[method]
+          arrayMethods[method] = function (...args) {
+            console.log(`defineProperty: 数组调用了 ${method}`)
+            return original.apply(this, args)
+          }
+        })
+
+        Object.setPrototypeOf(arrDefine, arrayMethods)
+
+        // 测试
+        arrDefine.push(1) // 输出: defineProperty: 数组调用了 push
+        arrDefine[0] = 100 // 但无法检测索引直接赋值: arrDefine[0] = 100（无输出）
+
+        const arrProxy = new Proxy([], {
+          set(target, key, value) {
+            if (key === 'length') {
+              console.log(`Proxy: 数组长度变化 -> ${value}`)
+            } else {
+              console.log(`Proxy: 设置数组索引 ${key} -> ${value}`)
+            }
+            target[key] = value
+            return true
+          },
+          get(target, key) {
+            console.log(`Proxy: 读取数组索引 ${key}`)
+            return target[key]
+          },
+        })
+
+        // 测试
+        arrProxy.push(1) // 输出: Proxy: 设置数组索引 0 -> 1 → Proxy: 数组长度变化 -> 1
+        arrProxy[0] = 100 // 输出: Proxy: 设置数组索引 0 -> 100
+        console.log(arrProxy[0]) // 输出: Proxy: 读取数组索引 0
+      }
+
+      function other() {
+        /* 4. 其他拦截操作（仅 Proxy 支持） */
+        const advancedProxy = new Proxy(function () {}, {
+          // 拦截函数调用
+          apply(target, thisArg, args) {
+            console.log(`Proxy: 函数被调用，参数: ${args}`)
+            return target.apply(thisArg, args)
+          },
+          // 拦截 in 操作符
+          has(target, key) {
+            console.log(`Proxy: 检查属性是否存在 ${key}`)
+            return key in target
+          },
+        })
+
+        // 测试函数调用
+        advancedProxy(1, 2, 3) // 输出: Proxy: 函数被调用，参数: 1,2,3
+        // 测试 in 操作符
+        console.log('foo' in advancedProxy) // 输出: Proxy: 检查属性是否存在 foo
+      }
+
+      //   observerProperty()
+      //   dynamicProperty()
+      //   arrayProperty()
+      other()
+
+      /* 
+      完整对比总结表
+            场景	Object.defineProperty	Proxy
+            属性初始化监听	支持，需逐个定义属性	支持，一次性拦截整个对象
+            动态新增属性	不支持，需手动重新定义	自动检测，触发 set 陷阱
+            删除属性	无法检测	通过 deleteProperty 陷阱拦截
+            数组操作	需重写数组方法，无法监听索引赋值	直接监听 push、索引赋值和 length
+            函数调用拦截	不支持	通过 apply 陷阱拦截
+            in 操作符检测	不支持	通过 has 陷阱拦截
+            兼容性	IE9+	不支持 IE11 及以下
+        何时选择？
+            Object.defineProperty：
+                需要支持旧浏览器（如 IE9+）。仅需监听少量已知属性
+
+            Proxy：
+                现代浏览器环境
+                需要监听动态属性、数组索引、delete 操作等复杂场景
+                需要更简洁的代码结构（无需遍历对象属性）
+
+        Vue 2 vs Vue 3：
+            Vue 2 使用 Object.defineProperty 实现响应式，因此无法检测数组索引变化和动态新增属性；Vue 3 改用 Proxy 彻底解决这些问题。
+      
+      */
+    </script>
+  </body>
+</html>

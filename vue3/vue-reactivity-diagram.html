@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vue 3 响应式系统图解</title>
+    <style>
+      body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #333;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 40px;
+        font-size: 2.5em;
+      }
+      .diagram-section {
+        margin-bottom: 50px;
+        padding: 25px;
+        border: 2px solid #e74c3c;
+        border-radius: 10px;
+        background: #fdf2f2;
+      }
+      .section-title {
+        font-size: 1.8em;
+        color: #e74c3c;
+        margin-bottom: 20px;
+        text-align: center;
+        font-weight: bold;
+      }
+      .flow-diagram {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        margin: 30px 0;
+      }
+      .box {
+        padding: 15px 20px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: bold;
+        min-width: 120px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+      }
+      .box:hover {
+        transform: translateY(-5px);
+      }
+      .reactive-box {
+        background: #3498db;
+        color: white;
+      }
+      .proxy-box {
+        background: #e67e22;
+        color: white;
+      }
+      .effect-box {
+        background: #27ae60;
+        color: white;
+      }
+      .dep-box {
+        background: #9b59b6;
+        color: white;
+      }
+      .render-box {
+        background: #e74c3c;
+        color: white;
+      }
+      .arrow {
+        font-size: 2em;
+        color: #34495e;
+        font-weight: bold;
+      }
+      .code-block {
+        background: #2c3e50;
+        color: #ecf0f1;
+        padding: 20px;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        margin: 15px 0;
+        overflow-x: auto;
+      }
+      .highlight {
+        background: #f39c12;
+        color: #2c3e50;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      .step-list {
+        list-style: none;
+        padding: 0;
+      }
+      .step-list li {
+        background: #ecf0f1;
+        margin: 10px 0;
+        padding: 15px;
+        border-left: 5px solid #3498db;
+        border-radius: 5px;
+      }
+      .step-number {
+        background: #3498db;
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        font-weight: bold;
+      }
+      .architecture-diagram {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin: 30px 0;
+      }
+      .layer {
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        color: white;
+        font-weight: bold;
+      }
+      .template-layer {
+        background: #e74c3c;
+      }
+      .proxy-layer {
+        background: #f39c12;
+      }
+      .reactive-layer {
+        background: #27ae60;
+      }
+      .connection-line {
+        height: 3px;
+        background: #34495e;
+        margin: 10px 0;
+        position: relative;
+      }
+      .connection-line::after {
+        content: '→';
+        position: absolute;
+        right: -10px;
+        top: -10px;
+        font-size: 20px;
+        color: #34495e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🚀 Vue 3 响应式系统完整图解</h1>
+
+      <!-- 整体架构图 -->
+      <div class="diagram-section">
+        <div class="section-title">📋 整体架构层次</div>
+        <div class="architecture-diagram">
+          <div class="layer template-layer">
+            <h3>模板层</h3>
+            <p>Template/JSX</p>
+            <p>{{ data }}</p>
+          </div>
+          <div class="layer proxy-layer">
+            <h3>代理层</h3>
+            <p>PublicInstanceProxy</p>
+            <p>属性访问拦截</p>
+          </div>
+          <div class="layer reactive-layer">
+            <h3>响应式层</h3>
+            <p>Reactive/Ref</p>
+            <p>依赖追踪</p>
+          </div>
+        </div>
+        <div class="connection-line"></div>
+        <div style="text-align: center; margin-top: 20px">
+          <strong
+            >数据流向：模板访问 → 代理拦截 → 响应式数据 → 依赖收集 →
+            更新通知</strong
+          >
+        </div>
+      </div>
+
+      <!-- 响应式对象创建流程 -->
+      <div class="diagram-section">
+        <div class="section-title">🔧 响应式对象创建流程</div>
+        <div class="flow-diagram">
+          <div class="box reactive-box">reactive(obj)</div>
+          <div class="arrow">→</div>
+          <div class="box proxy-box">new Proxy(obj, handlers)</div>
+          <div class="arrow">→</div>
+          <div class="box dep-box">创建 targetMap</div>
+          <div class="arrow">→</div>
+          <div class="box effect-box">返回代理对象</div>
+        </div>
+        <pre class="code-block">
+// 核心实现
+function reactive(target) {
+  return new Proxy(target, {
+    get(target, key, receiver) {
+      const result = Reflect.get(target, key, receiver)
+      <span class="highlight">track(target, key)</span>  // 依赖收集
+      return result
+    },
+    set(target, key, value, receiver) {
+      const result = Reflect.set(target, key, value, receiver)
+      <span class="highlight">trigger(target, key)</span>  // 触发更新
+      return result
+    }
+  })
+}
+        </pre>
+      </div>
+
+      <!-- 依赖收集过程 -->
+      <div class="diagram-section">
+        <div class="section-title">📊 依赖收集过程 (track)</div>
+        <div class="flow-diagram">
+          <div class="box render-box">渲染函数执行</div>
+          <div class="arrow">→</div>
+          <div class="box proxy-box">访问 obj.count</div>
+          <div class="arrow">→</div>
+          <div class="box reactive-box">触发 get 拦截器</div>
+          <div class="arrow">→</div>
+          <div class="box dep-box">track(target, key)</div>
+          <div class="arrow">→</div>
+          <div class="box effect-box">收集 activeEffect</div>
+        </div>
+        <ol class="step-list">
+          <li>
+            <span class="step-number">1</span>获取当前活跃的 Effect
+            (activeEffect)
+          </li>
+          <li>
+            <span class="step-number">2</span>从 targetMap 中获取 target 对应的
+            depsMap
+          </li>
+          <li>
+            <span class="step-number">3</span>从 depsMap 中获取 key 对应的 Dep
+            实例
+          </li>
+          <li>
+            <span class="step-number">4</span>将 activeEffect 添加到 Dep
+            的订阅者列表
+          </li>
+          <li>
+            <span class="step-number">5</span>在 Effect 中记录这个依赖关系
+          </li>
+        </ol>
+        <pre class="code-block">
+// 依赖收集核心逻辑
+function track(target, key) {
+  if (!activeEffect) return
+  
+  let depsMap = targetMap.get(target)
+  if (!depsMap) {
+    targetMap.set(target, (depsMap = new Map()))
+  }
+  
+  let dep = depsMap.get(key)
+  if (!dep) {
+    <span class="highlight">depsMap.set(key, (dep = new Dep()))</span>
+  }
+  
+  dep.track()  // 将 activeEffect 添加到依赖列表
+}
+</pre>
+      </div>
+
+      <!-- 依赖触发过程 -->
+      <div class="diagram-section">
+        <div class="section-title">🔥 依赖触发过程 (trigger)</div>
+        <div class="flow-diagram">
+          <div class="box reactive-box">obj.count++</div>
+          <div class="arrow">→</div>
+          <div class="box proxy-box">触发 set 拦截器</div>
+          <div class="arrow">→</div>
+          <div class="box dep-box">trigger(target, key)</div>
+          <div class="arrow">→</div>
+          <div class="box effect-box">通知所有 Effect</div>
+          <div class="arrow">→</div>
+          <div class="box render-box">重新渲染</div>
+        </div>
+        <ol class="step-list">
+          <li>
+            <span class="step-number">1</span>数据发生变化，触发 set 拦截器
+          </li>
+          <li>
+            <span class="step-number">2</span>调用 trigger 函数，查找相关依赖
+          </li>
+          <li><span class="step-number">3</span>遍历 Dep 中的所有订阅者</li>
+          <li>
+            <span class="step-number">4</span>调用每个 Effect 的 scheduler
+            或直接执行
+          </li>
+          <li>
+            <span class="step-number">5</span>更新任务加入调度队列，异步执行
+          </li>
+        </ol>
+      </div>
+
+      <!-- 组件渲染流程 -->
+      <div class="diagram-section">
+        <div class="section-title">🎨 组件渲染与响应式结合</div>
+        <div class="flow-diagram">
+          <div class="box render-box">组件初始化</div>
+          <div class="arrow">→</div>
+          <div class="box proxy-box">创建组件代理</div>
+          <div class="arrow">→</div>
+          <div class="box effect-box">setupRenderEffect</div>
+          <div class="arrow">→</div>
+          <div class="box reactive-box">渲染函数执行</div>
+          <div class="arrow">→</div>
+          <div class="box dep-box">依赖收集</div>
+        </div>
+        <pre class="code-block">
+// 组件渲染 Effect 设置
+function setupRenderEffect(instance) {
+  const componentUpdateFn = () => {
+    if (!instance.isMounted) {
+      // 首次渲染
+      const subTree = <span class="highlight">renderComponentRoot(instance)</span>
+      patch(null, subTree, container)
+      instance.isMounted = true
+    } else {
+      // 更新渲染
+      const nextTree = <span class="highlight">renderComponentRoot(instance)</span>
+      patch(prevTree, nextTree, container)
+    }
+  }
+  
+  const effect = new ReactiveEffect(componentUpdateFn)
+  effect.scheduler = () => <span class="highlight">queueJob(update)</span>  // 异步更新
+  
+  const update = () => effect.run()
+  update()
+}
+</pre>
+      </div>
+
+      <!-- 数据结构图 -->
+      <div class="diagram-section">
+        <div class="section-title">🗂️ 核心数据结构关系</div>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 20px 0;
+          "
+        >
+          <div>
+            <h4>WeakMap 结构</h4>
+            <pre class="code-block">
+targetMap: WeakMap {
+  target1 => Map {
+    'key1' => Dep { subs: [effect1, effect2] }
+    'key2' => Dep { subs: [effect3] }
+  }
+  target2 => Map {
+    'key1' => Dep { subs: [effect1] }
+  }
+}
+</pre
+            >
+          </div>
+          <div>
+            <h4>Dep 类结构</h4>
+            <pre class="code-block">
+class Dep {
+  version = 0
+  activeLink = undefined
+  subs = undefined
+  
+  track() { /* 收集依赖 */ }
+  trigger() { /* 触发更新 */ }
+  notify() { /* 通知订阅者 */ }
+}
+</pre
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- 完整示例 -->
+      <div class="diagram-section">
+        <div class="section-title">💡 完整示例演示</div>
+        <pre class="code-block">
+// 1. 创建响应式数据
+const state = <span class="highlight">reactive({ count: 0 })</span>
+
+// 2. 创建 Effect (模拟组件渲染)
+<span class="highlight">effect(() => {
+  console.log('渲染:', state.count)  // 依赖收集发生在这里
+})</span>
+
+// 3. 数据变化触发更新
+setTimeout(() => {
+  <span class="highlight">state.count++</span>  // 触发重新渲染
+}, 1000)
+</pre>
+        <div
+          style="
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+          "
+        >
+          <h4>执行流程：</h4>
+          <p>
+            <strong>初始化：</strong> reactive() → 创建 Proxy → effect() 执行 →
+            访问 state.count → track() 收集依赖
+          </p>
+          <p>
+            <strong>更新：</strong> state.count++ → 触发 set → trigger() → 通知
+            Effect → 重新执行渲染函数
+          </p>
+        </div>
+      </div>
+
+      <!-- 优化特性 -->
+      <div class="diagram-section">
+        <div class="section-title">⚡ 性能优化特性</div>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+          "
+        >
+          <div
+            class="box"
+            style="background: #16a085; color: white; padding: 20px"
+          >
+            <h4>访问缓存 (accessCache)</h4>
+            <p>避免重复的属性查找，提高渲染性能</p>
+          </div>
+          <div
+            class="box"
+            style="background: #8e44ad; color: white; padding: 20px"
+          >
+            <h4>异步更新队列</h4>
+            <p>合并多次同步更新，减少重复渲染</p>
+          </div>
+          <div
+            class="box"
+            style="background: #d35400; color: white; padding: 20px"
+          >
+            <h4>双向链表优化</h4>
+            <p>高效的依赖添加和移除操作</p>
+          </div>
+          <div
+            class="box"
+            style="background: #c0392b; color: white; padding: 20px"
+          >
+            <h4>版本号机制</h4>
+            <p>避免不必要的依赖检查和更新</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // 添加一些交互效果
+      document.querySelectorAll('.box').forEach(box => {
+        box.addEventListener('click', function () {
+          this.style.transform = 'scale(1.1)'
+          setTimeout(() => {
+            this.style.transform = 'scale(1)'
+          }, 200)
+        })
+      })
+
+      // 代码高亮动画
+      document.querySelectorAll('.highlight').forEach((el, index) => {
+        setTimeout(() => {
+          el.style.animation = 'pulse 1s ease-in-out'
+        }, index * 500)
+      })
+
+      // 添加 CSS 动画
+      const style = document.createElement('style')
+      style.textContent = `
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+        `
+      document.head.appendChild(style)
+    </script>
+  </body>
+</html>

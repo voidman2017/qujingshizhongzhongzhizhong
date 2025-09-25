@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TypeScript 构建产物测试</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .success {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+      }
+      .error {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+      }
+      pre {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>TypeScript 构建产物浏览器测试</h1>
+
+      <div id="global-test" class="test-section">
+        <h3>Global 格式测试</h3>
+        <p>加载中...</p>
+      </div>
+
+      <div id="esm-test" class="test-section">
+        <h3>ESM 格式测试</h3>
+        <p>加载中...</p>
+      </div>
+
+      <div id="console-output" class="test-section">
+        <h3>控制台输出</h3>
+        <pre id="console-log"></pre>
+      </div>
+    </div>
+
+    <!-- 测试 Global 格式 -->
+    <script src="./dist/typescript-learning.global.js"></script>
+    <script>
+      // 捕获控制台输出
+      const originalLog = console.log;
+      let consoleOutput = '';
+      console.log = function (...args) {
+        consoleOutput += args.join(' ') + '\n';
+        originalLog.apply(console, arguments);
+      };
+      // 测试 Global 格式
+      try {
+        document.getElementById('global-test').innerHTML = `
+                <h3>Global 格式测试</h3>
+                <p class="success">✅ Global 格式加载成功！</p>
+                <p>全局变量可用，代码已执行。</p>
+            `;
+      } catch (error) {
+        document.getElementById('global-test').innerHTML = `
+                <h3>Global 格式测试</h3>
+                <p class="error">❌ Global 格式加载失败: ${error.message}</p>
+            `;
+      }
+
+      // 测试 ESM 格式
+      import('./dist/typescript-learning.esm-bundler.js')
+        .then(() => {
+          document.getElementById('esm-test').innerHTML = `
+                    <h3>ESM 格式测试</h3>
+                    <p class="success">✅ ESM 格式加载成功！</p>
+                    <p>动态导入工作正常。</p>
+                `;
+        })
+        .catch(error => {
+          document.getElementById('esm-test').innerHTML = `
+                    <h3>ESM 格式测试</h3>
+                    <p class="error">❌ ESM 格式加载失败: ${error.message}</p>
+                `;
+        })
+        .finally(() => {
+          // 显示控制台输出
+          setTimeout(() => {
+            document.getElementById('console-log').textContent = consoleOutput;
+          }, 100);
+        });
+
+      TypeScriptLearning.runDemo();
+    </script>
+  </body>
+</html>

@@ -126,5 +126,3 @@ export function runDemo(): void {
 
   console.log('\n=== 示例完成 ===');
 }
-
-runDemo();

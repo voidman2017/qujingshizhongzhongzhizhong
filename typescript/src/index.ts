@@ -1,8 +1,4 @@
-/**
- * TypeScript 学习项目入口文件
- */
 
-import './demos/1.js';
+import { runDemo } from './demos/1';
 
-console.log('欢迎使用 TypeScript 学习项目！\n');
-
+export { runDemo };
